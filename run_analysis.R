@@ -3,7 +3,7 @@
 ##  I PREFERED TO WORK FROM EVERYTHING BEING UNZIPPED FROM THE PROVIDED DATA, AND USE THE WORKING DIRECTORY ABOVE THAT
 ##  THIS IS BECAUSE I DIDN'T WANT TO MOVE THE FILES AROUND FROM THE DATA WE WERE GIVEN - SEEMED TO BREAK THE CONCEPT
 ##  OF REPEATABILITY (I.E. SOMEONE ELSE WOULD HAVE TO MOVE THE DATA FILES AROUND TOO)
-##  SO THIS WON'T WORK IF THE SAMSUNG DATA IS YOUR WORKING DIRECTORY, BUT I DON'T CARE...!
+##  SO THIS WILL ONLY WORK IF THE SAMSUNG DATA IS UNZIPPED INTO YOUR WORKING DIRECTORY
 ##
 ##
 
@@ -59,8 +59,11 @@ mergeData <- function(test, train) {
   merged <- rbind(test, train)
   
   # Pull out the columns we want from the merged dataset
-  # That's the first and second (i.e. subjects and activity ids) and every column that has "mean" or "std" in it
-  required_data <-  merged[,c(1,2,grep("mean|std", names(merged)))]
+  
+  # That's the first and second (i.e. subjects and activity ids) and every column that has "mean()" or "std()" in it
+  # Unfortunately importing replaced the brackets in column names with dots
+  # So look for columns with mean.. or std.. in them
+  required_data <-  merged[,c(1,2,grep("mean\\.\\.|std\\.\\.", names(merged)))]
   
   # Keep the column names to make it easy to eliminate the "activity id"
   col_names <- names(required_data)
@@ -70,10 +73,11 @@ mergeData <- function(test, train) {
   activityToText <- function(activity_id) {
     activities$activity_text[which(activities$activity_id == activity_id)]
   }
-  # Insert the activity name columnf
-  required_data$activity_name <- as.factor(unlist(lapply(required_data$activity, activityToText)))
+  # Insert the activity name column
+  required_data$activity_name <- as.factor(sapply(required_data$activity, activityToText))
   
   # Now return all the columns except for "activity id" which we don't need any more
+  # Also reorder so that subject and activity are first
   required_data[, c("subject_id", "activity_name", col_names[3:length(col_names)])]
   
 }
@@ -83,11 +87,11 @@ activities <- getActivities()
 features <- getFeatures()
 
 # Then train and test data
-training <- loadTraining(features)
+train <- loadTraining(features)
 test <- loadTest(features)
 
 # Merge, get the columns we want out
-merged <- mergeData(training, test)
+merged <- mergeData(train, test)
 
 # And calculate the grouped means
 means <- aggregate(merged[,3:ncol(merged)], by=list(merged$subject_id, merged$activity_name), mean)
